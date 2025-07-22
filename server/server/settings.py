@@ -25,8 +25,14 @@ SECRET_KEY = 'django-insecure-=!#)pn9#)scx$d+16eog(yi41ga=62*tf%2i2*%z12aiih4o2(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+LOCAL_DB = False
 
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
+REST_FRAMEWORK = {
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,  # Change this to your desired page size
+}
 
 # Application definition
 
@@ -37,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',
     'rest_framework',
     'api'
 ]
@@ -74,12 +81,26 @@ WSGI_APPLICATION = 'server.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if LOCAL_DB == True:
+
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'postgres',
+            'USER': 'oli98', # replace with your own username
+            'PASSWORD': 'password', # replace with your own username 
+            'HOST': 'localhost',  # IP of the external DB server
+            'PORT': '5432',
+        }
+    }
 
 
 # Password validation
