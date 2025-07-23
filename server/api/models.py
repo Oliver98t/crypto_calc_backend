@@ -17,8 +17,8 @@ class BtcGbp(models.Model):
     volumefrom = models.FloatField(blank=True, null=True)
     volumeto = models.FloatField(blank=True, null=True)
     close = models.FloatField(blank=True, null=True)
-    conversiontype = models.TextField(db_column='conversionType', blank=True, null=True)  # Field name made lowercase.
-    conversionsymbol = models.TextField(db_column='conversionSymbol', blank=True, null=True)  # Field name made lowercase.
+    conversionType = models.TextField(db_column='conversionType', blank=True, null=True)  # Field name made lowercase.
+    conversionSymbol = models.TextField(db_column='conversionSymbol', blank=True, null=True)  # Field name made lowercase.
 
     class Meta:
         managed = True

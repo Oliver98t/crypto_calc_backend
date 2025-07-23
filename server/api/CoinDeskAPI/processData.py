@@ -32,9 +32,8 @@ def ingest_csv_to_db(filepath, table_name):
 
     df = pd.read_csv(filepath, low_memory=False)
     df.sort_values("time", ascending=True, inplace=True)
-    df.insert(0, 'id', range(1, len(df) + 1))  # Add primary key column at the start
     engine = create_engine(f'postgresql://{user}:{password}@localhost:{port}/{db}')
-    df.to_sql(table_name, engine, if_exists='replace', index=False, chunksize=1000)
+    df.to_sql(table_name, engine, if_exists='append', index=False, chunksize=1000)
 
     
 if __name__ == "__main__":

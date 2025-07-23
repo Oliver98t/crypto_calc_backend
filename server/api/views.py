@@ -31,22 +31,17 @@ class BtcGbpViewSet(viewsets.ModelViewSet):
         current_timestamp = int(time())
         timestamp_diff_seconds = current_timestamp - latest_DB_timestamp
         timestamp_diff_hours = int((timestamp_diff_seconds/60)/60)
-
+        
         # update local DB with new data
-        new_crypto_data = self.coin_desk_api.get_hourly_data(limit=5)
+        api_data = self.coin_desk_api.get_hourly_data(limit=timestamp_diff_hours)
+        new_crypto_data = api_data['Data']['Data']
         
-        new_row = BtcGbp(   time = 1000,
-                            high = 1000,
-                            low = 1000,
-                            open = 1000,
-                            volumefrom = 1000,
-                            volumeto = 1000,
-                            close = 1000,
-                            )
-        
-        new_rows = [new_row, new_row]
-        BtcGbp.objects.bulk_create(new_rows)
-        #print(new_crypto_data)
+        new_btc_gbp_data = []
+        for new_crypto_data_point in new_crypto_data:
+            print(new_crypto_data_point)
+            new_btc_gbp_data.append( BtcGbp(**new_crypto_data_point) )
+
+        BtcGbp.objects.bulk_create(new_btc_gbp_data)
 
         return Response(
             {"message": "DB updated successfully"},
