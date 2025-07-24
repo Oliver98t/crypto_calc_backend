@@ -34,3 +34,7 @@ env/
 .idea/
 *.sublime-workspace
 *.subl
+
+# Ignore all Python bytecode files
+*.pyc
+__pycache__/

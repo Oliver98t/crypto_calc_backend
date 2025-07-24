@@ -2,6 +2,8 @@ import requests
 from time import time
 import os
 
+COINDESK_API_HOURLY_LIMIT = 2000
+
 class CoinDeskAPI():
     def __init__(self):
         self.api_key = os.environ.get("COIN_DESK_API_KEY")
