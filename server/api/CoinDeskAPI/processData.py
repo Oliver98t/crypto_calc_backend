@@ -39,7 +39,7 @@ def ingest_csv_to_db(filepath, table_name):
 if __name__ == "__main__":
     data_filepath = "data/"
     
-    cryptos = ['btc']#['eth', 'sol', 'sui']
+    cryptos = ['eth', 'sol', 'sui']
     for crypto in cryptos:
         #write_crypto_data_to_csv(filename=f"{data_filepath}/{crypto}_gbp.csv", pair={'currency': 'gbp', 'crypto_currency': crypto})
         pair = f"{crypto}_gbp"
