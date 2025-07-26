@@ -6,8 +6,8 @@ from math import ceil
 import numpy as np
 import pandas as pd
 
-from .models import BtcGbp
-from .serializers import BtcGbpSerializer
+from .models import BtcGbp, EthGbp, SolGbp, SuiGbp
+from .serializers import BtcGbpSerializer, EthGbpSerializer, SolGbpSerializer, SuiGbpSerializer
 from .CoinDeskAPI.API import CoinDeskAPI, COINDESK_API_HOURLY_LIMIT
 
 # moving average functions
@@ -24,15 +24,12 @@ def calculate_ma(df: pd.DataFrame, window_size: int) -> dict:
     result = filtered_df.to_dict(orient='records')
 
     return result
-
 #-------------------------------------------------------------------------
 
-class BtcGbpViewSet(viewsets.ModelViewSet):
+class BaseViewSet(viewsets.ModelViewSet):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.coin_desk_api = CoinDeskAPI()
-        self.queryset = BtcGbp.objects.all()
-        self.fserializer_class = BtcGbpSerializer
     
     @action(detail=False, methods=['put'], url_path='update_database')
     def update_database(self, request):
@@ -105,7 +102,33 @@ class BtcGbpViewSet(viewsets.ModelViewSet):
         return Response({"data": prices_ma}, 
                                     status=api_status)
 
+class BtcGbpViewSet(BaseViewSet):
+    basename = BtcGbp._meta.db_table
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.queryset = BtcGbp.objects.all()
+        self.fserializer_class = BtcGbpSerializer
 
+class EthGbpViewSet(BaseViewSet):
+    basename = EthGbp._meta.db_table
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.queryset = EthGbp.objects.all()
+        self.fserializer_class = EthGbpSerializer
+
+class SolGbpViewSet(BaseViewSet):
+    basename = SolGbp._meta.db_table
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.queryset = SuiGbp.objects.all()
+        self.fserializer_class = SolGbpSerializer
+
+class SuiGbpViewSet(BaseViewSet):
+    basename = SuiGbp._meta.db_table
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.queryset = SuiGbp.objects.all()
+        self.fserializer_class = SuiGbpSerializer
         
 
 

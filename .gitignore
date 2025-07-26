@@ -38,3 +38,5 @@ env/
 # Ignore all Python bytecode files
 *.pyc
 __pycache__/
+server/api/__pycache__/
+server/api/CoinDeskAPI/__pycache__/

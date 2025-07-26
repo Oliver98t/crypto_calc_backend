@@ -8,7 +8,7 @@
 from django.db import models
 
 
-class BtcGbp(models.Model):
+class BaseCryptoModel(models.Model):
     id = models.BigAutoField(primary_key=True)
     time = models.BigIntegerField(blank=True, null=True)
     high = models.FloatField(blank=True, null=True)
@@ -21,5 +21,25 @@ class BtcGbp(models.Model):
     conversionSymbol = models.TextField(db_column='conversionSymbol', blank=True, null=True)  # Field name made lowercase.
 
     class Meta:
+        abstract = True
+
+class BtcGbp(BaseCryptoModel):
+    class Meta:
         managed = True
         db_table = 'btc_gbp'
+
+class EthGbp(BaseCryptoModel):
+    class Meta:
+        managed = True
+        db_table = 'eth_gbp'
+
+class SolGbp(BaseCryptoModel):
+    class Meta:
+        managed = True
+        db_table = 'sol_gbp'
+
+class SuiGbp(BaseCryptoModel):
+    class Meta:
+        managed = True
+        db_table = 'sui_gbp'
+    
