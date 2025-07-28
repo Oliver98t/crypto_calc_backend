@@ -7,7 +7,10 @@
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
 
+# top down view of 
+CRYPTO_TABLES = ['btc_gbp', 'eth_gbp', 'sol_gbp', 'sui_gbp']
 
+# Define your abstract base class once
 class BaseCryptoModel(models.Model):
     id = models.BigAutoField(primary_key=True)
     time = models.BigIntegerField(blank=True, null=True)
@@ -17,29 +20,31 @@ class BaseCryptoModel(models.Model):
     volumefrom = models.FloatField(blank=True, null=True)
     volumeto = models.FloatField(blank=True, null=True)
     close = models.FloatField(blank=True, null=True)
-    conversionType = models.TextField(db_column='conversionType', blank=True, null=True)  # Field name made lowercase.
-    conversionSymbol = models.TextField(db_column='conversionSymbol', blank=True, null=True)  # Field name made lowercase.
+    conversionType = models.TextField(db_column='conversionType', blank=True, null=True)
+    conversionSymbol = models.TextField(db_column='conversionSymbol', blank=True, null=True)
 
     class Meta:
         abstract = True
 
-class BtcGbp(BaseCryptoModel):
-    class Meta:
-        managed = True
-        db_table = 'btc_gbp'
+# Dynamic class registry (optional, useful for introspection or router wiring)
+models_crypto_classes = {}
 
-class EthGbp(BaseCryptoModel):
-    class Meta:
-        managed = True
-        db_table = 'eth_gbp'
+# Create crypto classes dynamically
+for table in CRYPTO_TABLES:
+    class_name = ''.join(part.capitalize() for part in table.split('_'))  # e.g. 'btc_gbp' → 'BtcGbp'
 
-class SolGbp(BaseCryptoModel):
-    class Meta:
-        managed = True
-        db_table = 'sol_gbp'
+    model_class = type(
+        class_name,
+        (BaseCryptoModel,),
+        {
+            '__module__': __name__,  # important for Django internals
+            'Meta': type('Meta', (), {
+                'managed': True,
+                'db_table': table
+            })
+        }
+    )
 
-class SuiGbp(BaseCryptoModel):
-    class Meta:
-        managed = True
-        db_table = 'sui_gbp'
+    models_crypto_classes[class_name] = model_class
+    globals()[class_name] = model_class  # make it accessible globally if needed
     

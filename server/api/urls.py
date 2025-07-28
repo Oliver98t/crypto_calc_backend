@@ -19,10 +19,7 @@ for name, cls in all_classes.items():
     print(type(name))
 
 router = DefaultRouter()
-router.register(f'{BtcGbpViewSet.basename}', BtcGbpViewSet, basename=f'{BtcGbpViewSet.basename}')
-router.register(r'eth_gbp', EthGbpViewSet, basename='eth_gbp')
-router.register(r'sui_gbp', SuiGbpViewSet, basename='sui_gbp')
-router.register(r'sol_gbp', SolGbpViewSet, basename='sol_gbp')
+
 
 urlpatterns = [
     path('', include(router.urls)),

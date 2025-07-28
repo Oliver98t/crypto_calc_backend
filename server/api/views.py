@@ -6,8 +6,8 @@ from math import ceil
 import numpy as np
 import pandas as pd
 
-from .models import BtcGbp, EthGbp, SolGbp, SuiGbp
-from .serializers import BtcGbpSerializer, EthGbpSerializer, SolGbpSerializer, SuiGbpSerializer
+from .models import models_crypto_classes
+from .serializers import serializers_crypto_classes
 from .CoinDeskAPI.API import CoinDeskAPI, COINDESK_API_HOURLY_LIMIT
 
 # moving average functions
@@ -15,7 +15,7 @@ from .CoinDeskAPI.API import CoinDeskAPI, COINDESK_API_HOURLY_LIMIT
 def calculate_ma(df: pd.DataFrame, window_size: int) -> dict:
     # calculate ma column for pandas df
     df.sort_values('time', inplace=True)
-    df['ma_price'] = df['price'].rolling(window=window_size).mean()
+    df['ma_price'] = df['price'].rolling(window=window_size).mean().round(2)
     # convert to dict
     # Filter out rows where ma_price is NaN
     filtered_df = df[['time', 'ma_price']].dropna()
@@ -30,12 +30,14 @@ class BaseViewSet(viewsets.ModelViewSet):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.coin_desk_api = CoinDeskAPI()
+        self.model = None
+        self.basename
     
     @action(detail=False, methods=['put'], url_path='update_database')
     def update_database(self, request):
         # get put request input parameters
         crypto_pair = request.data.get('pair')
-
+        print(self.basename)
         # get most recent data timestamp from local DB
         latest_data = self.queryset.order_by('-id').first()
         latest_DB_timestamp = latest_data.time
@@ -47,7 +49,7 @@ class BaseViewSet(viewsets.ModelViewSet):
         print(f"hourly data points collected: {timestamp_diff_hours}")
         # calculate number of api calls if limit of 2000 is reached
         hourly_api_calls = ceil(timestamp_diff_hours/COINDESK_API_HOURLY_LIMIT)
-        #print(hourly_api_calls)
+
         # update local DB with new data
         if timestamp_diff_hours > 0:
             for _ in range(hourly_api_calls):
@@ -57,9 +59,9 @@ class BaseViewSet(viewsets.ModelViewSet):
                 new_btc_gbp_data = []
                 for new_crypto_data_point in new_crypto_data:
                     #print(new_crypto_data_point)
-                    new_btc_gbp_data.append( BtcGbp(**new_crypto_data_point) )
+                    new_btc_gbp_data.append( self.model(**new_crypto_data_point) )
 
-                BtcGbp.objects.bulk_create(new_btc_gbp_data)
+                #self.model.objects.bulk_create(new_btc_gbp_data)
 
             return Response(
                 {"message": "DB updated successfully"},
@@ -102,33 +104,29 @@ class BaseViewSet(viewsets.ModelViewSet):
         return Response({"data": prices_ma}, 
                                     status=api_status)
 
-class BtcGbpViewSet(BaseViewSet):
-    basename = BtcGbp._meta.db_table
+# dynamically create viewset classes
+def viewset_init(model, serializer):
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.queryset = BtcGbp.objects.all()
-        self.fserializer_class = BtcGbpSerializer
+        super(self.__class__, self).__init__(**kwargs)
+        self.queryset = model.objects.all()
+        self.serializer = serializer
+        self.model = model
+        self.basename = model._meta.db_table
+    return __init__
 
-class EthGbpViewSet(BaseViewSet):
-    basename = EthGbp._meta.db_table
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.queryset = EthGbp.objects.all()
-        self.fserializer_class = EthGbpSerializer
+viewset_crypto_classes = {}
+for model_crypto_class_name in models_crypto_classes:
+    serializer_class_name = f"{model_crypto_class_name}Serializer"
+    class_name = f"{model_crypto_class_name}ViewSet"
+    model_class = type(
+        class_name,
+        (BaseViewSet,),
+        {
+            '__module__': __name__,  # important for Django internals
+            '__init__': viewset_init(model=models_crypto_classes[model_crypto_class_name],
+                                     serializer=serializers_crypto_classes[serializer_class_name]),
+        }
+    )
 
-class SolGbpViewSet(BaseViewSet):
-    basename = SolGbp._meta.db_table
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.queryset = SuiGbp.objects.all()
-        self.fserializer_class = SolGbpSerializer
-
-class SuiGbpViewSet(BaseViewSet):
-    basename = SuiGbp._meta.db_table
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.queryset = SuiGbp.objects.all()
-        self.fserializer_class = SuiGbpSerializer
-        
-
-
+    viewset_crypto_classes[class_name] = model_class
+    globals()[class_name] = model_class  # make it accessible globally if needed

@@ -1,22 +1,25 @@
 from rest_framework import serializers
-from .models import BtcGbp, EthGbp, SolGbp, SuiGbp
 
-class BtcGbpSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = BtcGbp
-        fields = '__all__'
+from .models import models_crypto_classes
+import inspect
+import importlib
 
-class EthGbpSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = EthGbp
-        fields = '__all__'
+# create serial classes 
+serializers_crypto_classes = {}
 
-class SolGbpSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SuiGbp
-        fields = '__all__'
+for model_crypto_class_name in models_crypto_classes:
+    class_name = f"{model_crypto_class_name}Serializer"
+    model_class = type(
+        class_name,
+        (serializers.ModelSerializer,),
+        {
+            '__module__': __name__,  # important for Django internals
+            'Meta': type('Meta', (), {
+                "model": model_crypto_class_name,
+                "fields": '__all__'
+            })
+        }
+    )
 
-class SuiGbpSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SolGbp
-        fields = '__all__'
+    serializers_crypto_classes[class_name] = model_class
+    globals()[class_name] = model_class  # make it accessible globally if needed
