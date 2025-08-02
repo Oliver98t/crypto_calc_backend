@@ -1,25 +1,15 @@
 from rest_framework import serializers
+from .models import CurrencyPair, OHLCV
 
-from .models import models_crypto_classes
-import inspect
-import importlib
+class CurrencyPairSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CurrencyPair
+        fields = '__all__'
 
-# create serial classes 
-serializers_crypto_classes = {}
+class OHLCVSerializer(serializers.ModelSerializer):
+    pair = CurrencyPairSerializer(read_only=True)
+    pair_id = serializers.PrimaryKeyRelatedField(queryset=CurrencyPair.objects.all(), source='pair', write_only=True)
 
-for model_crypto_class_name in models_crypto_classes:
-    class_name = f"{model_crypto_class_name}Serializer"
-    model_class = type(
-        class_name,
-        (serializers.ModelSerializer,),
-        {
-            '__module__': __name__,  # important for Django internals
-            'Meta': type('Meta', (), {
-                "model": model_crypto_class_name,
-                "fields": '__all__'
-            })
-        }
-    )
-
-    serializers_crypto_classes[class_name] = model_class
-    globals()[class_name] = model_class  # make it accessible globally if needed
+    class Meta:
+        model = OHLCV
+        fields = '__all__'

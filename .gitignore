@@ -43,3 +43,5 @@ server/api/CoinDeskAPI/__pycache__/
 
 # Ignore sandbox
 sandbox.py
+
+*.txt
