@@ -7,39 +7,37 @@
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
 
+CRYPTOS = ['SUI']#, 'ETH', 'SOL', 'SUI']
+FIATS = ['GBP', 'USD', 'EUR']
 
-class BaseCryptoModel(models.Model):
-    id = models.BigAutoField(primary_key=True)
-    time = models.BigIntegerField(blank=True, null=True)
-    high = models.FloatField(blank=True, null=True)
-    low = models.FloatField(blank=True, null=True)
-    open = models.FloatField(blank=True, null=True)
-    volumefrom = models.FloatField(blank=True, null=True)
-    volumeto = models.FloatField(blank=True, null=True)
-    close = models.FloatField(blank=True, null=True)
-    conversionType = models.TextField(db_column='conversionType', blank=True, null=True)  # Field name made lowercase.
-    conversionSymbol = models.TextField(db_column='conversionSymbol', blank=True, null=True)  # Field name made lowercase.
-
-    class Meta:
-        abstract = True
-
-class BtcGbp(BaseCryptoModel):
-    class Meta:
-        managed = True
-        db_table = 'btc_gbp'
-
-class EthGbp(BaseCryptoModel):
-    class Meta:
-        managed = True
-        db_table = 'eth_gbp'
-
-class SolGbp(BaseCryptoModel):
-    class Meta:
-        managed = True
-        db_table = 'sol_gbp'
-
-class SuiGbp(BaseCryptoModel):
-    class Meta:
-        managed = True
-        db_table = 'sui_gbp'
+class CurrencyPair(models.Model): 
+    base_code = models.CharField(max_length=10)   # e.g., BTC 
+    quote_code = models.CharField(max_length=10)  # e.g., USD
     
+    class Meta:
+        db_table = 'currency_pair'
+        unique_together = ('base_code', 'quote_code')
+
+    def __str__(self):
+        return f"{self.base_code}/{self.quote_code}"
+    
+class OHLCV(models.Model): 
+    pair = models.ForeignKey(CurrencyPair, on_delete=models.CASCADE) 
+    pair_name = models.CharField(max_length=7, default="unknown")
+    timestamp = models.BigIntegerField()
+    open = models.DecimalField(max_digits=18, decimal_places=3)
+    high = models.DecimalField(max_digits=18, decimal_places=3)
+    low = models.DecimalField(max_digits=18, decimal_places=3)
+    close = models.DecimalField(max_digits=18, decimal_places=3)
+    volumeFrom = models.DecimalField(max_digits=30, decimal_places=3)
+    volumeTo = models.DecimalField(max_digits=30, decimal_places=3)
+
+    class Meta:
+        db_table = 'ohlcv_hourly'
+        unique_together = ('pair', 'timestamp')
+        indexes = [
+            models.Index(fields=['pair', '-timestamp']),
+        ]
+
+    def __str__(self):
+        return f"{self.pair} | {self.timestamp}"

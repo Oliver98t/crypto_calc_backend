@@ -1,22 +1,15 @@
 from rest_framework import serializers
-from .models import BtcGbp, EthGbp, SolGbp, SuiGbp
+from .models import CurrencyPair, OHLCV
 
-class BtcGbpSerializer(serializers.ModelSerializer):
+class CurrencyPairSerializer(serializers.ModelSerializer):
     class Meta:
-        model = BtcGbp
+        model = CurrencyPair
         fields = '__all__'
 
-class EthGbpSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = EthGbp
-        fields = '__all__'
+class OHLCVSerializer(serializers.ModelSerializer):
+    pair = CurrencyPairSerializer(read_only=True)
+    pair_id = serializers.PrimaryKeyRelatedField(queryset=CurrencyPair.objects.all(), source='pair', write_only=True)
 
-class SolGbpSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SuiGbp
-        fields = '__all__'
-
-class SuiGbpSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SolGbp
+        model = OHLCV
         fields = '__all__'
