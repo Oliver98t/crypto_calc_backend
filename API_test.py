@@ -90,7 +90,7 @@ def update_all_pairs():
 if __name__ == "__main__":
     #get_ma("BTC/GBP")
     #get_currencies()
-    get_pair_data(pair='BTC/GBP', from_ts=1690958435, to_ts=1722580835)
+    #get_pair_data(pair='BTC/GBP', from_ts=1690958435, to_ts=1722580835)
     #update_pair('SOL/GBP')
-    #update_all_pairs()
+    update_all_pairs()
 
