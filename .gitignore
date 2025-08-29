@@ -45,3 +45,7 @@ server/api/CoinDeskAPI/__pycache__/
 sandbox.py
 
 *.txt
+
+# Ignore Django migration files except __init__.py
+**/migrations/*
+!**/migrations/__init__.py

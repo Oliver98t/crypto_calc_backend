@@ -25,6 +25,31 @@ def calculate_ma(df: pd.DataFrame, window_size: int) -> dict:
 
     return result
 #-------------------------------------------------------------------------
+def calculate_rsi(prices_df: pd.DataFrame, period: int = 14) -> list:
+    """
+    Calculate RSI for a DataFrame with 'price' and 'timestamp' columns.
+    Returns a list of dicts: [{'timestamp': ..., 'rsi': ...}, ...]
+    """
+    if prices_df.empty or len(prices_df) < period:
+        return []
+
+    delta = prices_df['price'].diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+
+    avg_gain = gain.rolling(window=period, min_periods=period).mean()
+    avg_loss = loss.rolling(window=period, min_periods=period).mean()
+
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+
+    rsi_df = pd.DataFrame({
+        'timestamp': prices_df['timestamp'],
+        'rsi': rsi
+    }).dropna()
+
+    return rsi_df.to_dict(orient='records')
+
 class CurrencyPairViewSet(viewsets.ModelViewSet):
     queryset = CurrencyPair.objects.all()
     serializer_class = CurrencyPairSerializer
@@ -51,7 +76,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         pair_split = crypto_pair.split('/')
         base = pair_split[0]
         quote = pair_split[1]
-        
+
         try:
             currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
 
@@ -62,26 +87,26 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         data = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
         latest_DB_timestamp = data[0].timestamp
         print(f"latest timestamp in DB {latest_DB_timestamp}")
-        
+
         # calculate difference from timestamp and now to build query
         current_timestamp = int(time())
         timestamp_diff_seconds = current_timestamp - latest_DB_timestamp
         timestamp_diff_hours = int((timestamp_diff_seconds/60)/60)
         print(f"hourly data points collected: {timestamp_diff_hours}")
-        
+
         # calculate number of api calls if limit of 2000 is reached
         hourly_api_calls = ceil(timestamp_diff_hours/COINDESK_API_HOURLY_LIMIT)
-        
+
         # update local DB with new data
         if timestamp_diff_hours > 0:
             for _ in range(hourly_api_calls):
-                api_data = self.coin_desk_api.get_hourly_data(limit=timestamp_diff_hours,
-                                                              pair={'currency': quote.lower(),'crypto_currency': base.lower()})
+                api_data = self.coin_desk_api.get_hourly_data(  limit=timestamp_diff_hours,
+                                                                pair={'currency': quote.lower(),'crypto_currency': base.lower()})
                 new_crypto_data = api_data['Data']['Data']
                 new_records = []
                 for new_crypto_data_point in new_crypto_data:
                     new_record = OHLCV(
-                        pair = currency_pair, 
+                        pair = currency_pair,
                         pair_name = crypto_pair,
                         timestamp = new_crypto_data_point['time'],
                         open = new_crypto_data_point['open'],
@@ -100,7 +125,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
 
         return Response( {"message": api_status_message},
                             status=api_status)
-    
+
     @action(detail=False, methods=['get'], url_path='available_currencies')
     def available_currencies(self, request):
         api_status=status.HTTP_200_OK
@@ -111,19 +136,19 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         data = {}
         data['fiat'] = fiat_currencies
         data['crypto'] = crypto_currencies
-        
-        return Response({"data": data}, 
+
+        return Response({"data": data},
                                     status=api_status)
-    
+
     @action(detail=False, methods=['get'], url_path='available_analyses')
     def available_analyses(self, request):
         api_status=status.HTTP_200_OK
         function_prefix = 'calc_'
-        analyses = [name.replace(function_prefix, '').replace('_', ' ') 
-                    for name, obj in inspect.getmembers(OHLCVViewSet, predicate=inspect.isfunction) 
+        analyses = [name.replace(function_prefix, '').replace('_', ' ')
+                    for name, obj in inspect.getmembers(OHLCVViewSet, predicate=inspect.isfunction)
                     if name.startswith(function_prefix)]
         # Custom logic here
-        return Response({"data": analyses}, 
+        return Response({"data": analyses},
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='pair_data')
@@ -135,12 +160,12 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         pair_split = crypto_pair.split('/')
         base = pair_split[0]
         quote = pair_split[1]
-        
+
         try:
             currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
         except CurrencyPair.DoesNotExist:
             api_status = status.HTTP_400_BAD_REQUEST
-        
+
         to_timestamp = request.query_params.get('to_ts')
         from_timestamp = request.query_params.get('from_ts')
 
@@ -149,10 +174,10 @@ class OHLCVViewSet(viewsets.ModelViewSet):
             currency_pair_queryset = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
             timestamp_range_queryset = currency_pair_queryset.filter(timestamp__range=(from_timestamp, to_timestamp))
             timestamp_range_queryset = timestamp_range_queryset.order_by('timestamp')
-        
+
         prices = [{"timestamp": price.timestamp, "price" : price.open} for price in timestamp_range_queryset]
-        
-        return Response({"data": prices}, 
+
+        return Response({"data": prices},
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='moving_average')
@@ -162,11 +187,11 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         # check if crypto/fiat pair exists
         crypto_pair = str(request.query_params.get('pair'))
         print(crypto_pair)
-        
+
         pair_split = crypto_pair.split('/')
         base = pair_split[0]
         quote = pair_split[1]
-        
+
         try:
             currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
         except CurrencyPair.DoesNotExist:
@@ -181,39 +206,73 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         if to_timestamp and from_timestamp and ( day_ma or hour_ma ):
             currency_pair_queryset = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
             timestamp_range_queryset = currency_pair_queryset.filter(timestamp__range=(from_timestamp, to_timestamp))
-            
-        
+
+
         # extract open price data
         prices = [{"timestamp": price.timestamp, "price" : price.open} for price in timestamp_range_queryset]
         prices_df = pd.DataFrame(prices)
-        
+
         prices_ma = None
         api_status=status.HTTP_200_OK
         if day_ma:
             day_ma = int(day_ma)
             prices_ma = calculate_ma(df=prices_df,window_size=day_ma*24)
-        
+
         elif hour_ma:
             hour_ma = int(hour_ma)
             prices_ma = calculate_ma(df=prices_df,window_size=hour_ma)
-        
+
         else:
             api_status = status.HTTP_400_BAD_REQUEST
-        
+
         # Custom logic here
-        return Response({"data": prices_ma}, 
+        return Response({"data": prices_ma},
                                     status=api_status)
-    
+
     @action(detail=False, methods=['get'], url_path='market_sentiment')
     def calc_Market_Sentiment(self, request):
         api_status=status.HTTP_200_OK
         # Custom logic here
-        return Response({"data": "market sentiment test"}, 
+        return Response({"data": "market sentiment test"},
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='rsi')
     def calc_RSI(self, request):
-        api_status=status.HTTP_200_OK
-        # Custom logic here
-        return Response({"data": "rsi test"}, 
+        # check if crypto/fiat pair exists
+        api_status = status.HTTP_200_OK
+        crypto_pair = str(request.query_params.get('pair'))
+        api_status_message = f"{crypto_pair} data exists"
+        pair_split = crypto_pair.split('/')
+        base = pair_split[0]
+        quote = pair_split[1]
+
+        # get interval
+        interval = request.query_params.get('interval')
+        print(interval)
+
+        try:
+            currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
+        except CurrencyPair.DoesNotExist:
+            api_status = status.HTTP_400_BAD_REQUEST
+
+        to_timestamp = request.query_params.get('to_ts')
+        from_timestamp = request.query_params.get('from_ts')
+
+        # get query set from timestamp range
+        if to_timestamp and from_timestamp:
+            currency_pair_queryset = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
+            timestamp_range_queryset = currency_pair_queryset.filter(timestamp__range=(from_timestamp, to_timestamp))
+            timestamp_range_queryset = timestamp_range_queryset.order_by('timestamp')
+
+
+        prices = [{"timestamp": price.timestamp, "price" : price.open} for price in timestamp_range_queryset]
+        prices_df = pd.DataFrame(prices)
+
+        # Calculate RSI values
+        rsi_period = int(request.query_params.get('period', 14))  # default to 14 if not provided
+        # If period is in days and data is hourly, multiply by 24
+        rsi_period_points = rsi_period * 24  # 14 days * 24 hours = 336 points
+        rsi_values = calculate_rsi(prices_df, period=rsi_period_points)
+
+        return Response({"data": rsi_values},
                                     status=api_status)

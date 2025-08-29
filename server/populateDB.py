@@ -9,7 +9,7 @@ import csv
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'server.settings')
 django.setup()
 
-from api.CoinDeskAPI.API import CoinDeskAPI 
+from api.CoinDeskAPI.API import CoinDeskAPI
 from api.models import CurrencyPair, OHLCV, CRYPTOS, FIATS
 
 API_CALLS = 50
@@ -21,6 +21,7 @@ def insert_currency_pairs():
                 base_code=crypto,
                 quote_code=fiat
             )
+            print(f"{crypto}/{fiat} created")
 
 def insert_ohlcv_data_pair(base : str, quote : str, coin_desk_api : CoinDeskAPI):
     pair, _ = CurrencyPair.objects.get_or_create(base_code=base, quote_code=quote)
@@ -34,7 +35,7 @@ def insert_ohlcv_data_pair(base : str, quote : str, coin_desk_api : CoinDeskAPI)
         Time_from = coin_data['TimeFrom']
         current_timestamp = Time_from
         data = coin_data['Data']
-        
+
         for data_point in data:
             new_record = OHLCV(
                 pair=pair,
@@ -51,7 +52,7 @@ def insert_ohlcv_data_pair(base : str, quote : str, coin_desk_api : CoinDeskAPI)
         print(f"{api_call+1} / {API_CALLS} completed")
     OHLCV.objects.bulk_create(new_records[::-1], ignore_conflicts=True)
     print(f"{base}/{quote} records uploaded to DB")
-        
+
 def insert_ohlcv_data():
     coin_desk_api = CoinDeskAPI()
     for crypto in CRYPTOS:
@@ -59,4 +60,5 @@ def insert_ohlcv_data():
             insert_ohlcv_data_pair(base=crypto, quote=fiat, coin_desk_api=coin_desk_api)
 
 if __name__ == "__main__":
+    #insert_currency_pairs()
     insert_ohlcv_data()

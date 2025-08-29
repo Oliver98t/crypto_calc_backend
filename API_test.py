@@ -1,8 +1,8 @@
 import requests
+import argparse
 
 # Endpoint and parameters
 BASE_URL = "http://localhost:8000/ohlcv/"
-
 def get_ma(pair: str):
     url = BASE_URL + "moving_average/"
     params = {
@@ -37,7 +37,7 @@ def get_currencies() -> dict:
         print(data)
     else:
         print(f"Error {response.status_code}: {response.text}")
-    
+
     return data
 
 def get_pair_data(pair: str, from_ts: int, to_ts: int):
@@ -87,10 +87,54 @@ def update_all_pairs():
             pair_string = f"{crypto}/{fiat}"
             update_pair(pair=pair_string)
 
+def get_rsi(pair: str, interval: str, from_ts: int, to_ts: int):
+    url = BASE_URL + "rsi/"
+    params = {
+        "pair": pair,
+        "interval": interval,
+        "from_ts": from_ts,
+        "to_ts": to_ts,
+    }
+    headers = {"Accept": "application/json"}
+    # Perform GET request
+    response = requests.get(url, params=params, headers=headers)
+
+    # Check status and display result
+    if response.status_code == 200:
+        data = response.json()
+        print("RSI Data:")
+        import matplotlib.pyplot as plt
+
+        rsi_values = [data_p['rsi'] for data_p in data['data']]
+        timestamps = [data_p['timestamp'] for data_p in data['data']]
+
+        plt.plot(timestamps, rsi_values, linewidth=2)
+        plt.savefig('test')
+    else:
+        print(f"Error {response.status_code}: {response.text}")
+
 if __name__ == "__main__":
-    #get_ma("BTC/GBP")
-    #get_currencies()
-    #get_pair_data(pair='BTC/GBP', from_ts=1690958435, to_ts=1722580835)
-    #update_pair('SOL/GBP')
-    update_all_pairs()
+    parser = argparse.ArgumentParser(description="Test Crypto Calc API endpoints.")
+    parser.add_argument('--ma', metavar='PAIR', help='Test moving average for given pair (e.g. BTC/GBP)')
+    parser.add_argument('--rsi', nargs=4, metavar=('PAIR', 'INTERVAL', 'FROM_TS', 'TO_TS'), help='Test pair data endpoint')
+    parser.add_argument('--currencies', action='store_true', help='Test available currencies endpoint')
+    parser.add_argument('--pair-data', nargs=3, metavar=('PAIR', 'FROM_TS', 'TO_TS'), help='Test pair data endpoint')
+    parser.add_argument('--update-pair', metavar='PAIR', help='Test update database for a specific pair')
+    parser.add_argument('--update-all', action='store_true', help='Test update database for all pairs')
+
+    args = parser.parse_args()
+
+    if args.ma:
+        get_ma(args.ma)
+    if args.rsi:
+        get_rsi(pair=args.rsi[0], interval=args.rsi[1], from_ts=args.rsi[2], to_ts=args.rsi[3])
+    if args.currencies:
+        get_currencies()
+    if args.pair_data:
+        pair, from_ts, to_ts = args.pair_data
+        get_pair_data(pair=pair, from_ts=int(from_ts), to_ts=int(to_ts))
+    if args.update_pair:
+        update_pair(args.update_pair)
+    if args.update_all:
+        update_all_pairs()
 

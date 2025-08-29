@@ -15,7 +15,6 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -25,7 +24,7 @@ SECRET_KEY = 'django-insecure-=!#)pn9#)scx$d+16eog(yi41ga=62*tf%2i2*%z12aiih4o2(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-LOCAL_DB = False
+LOCAL_DB = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
@@ -105,7 +104,7 @@ else:
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': 'postgres',
             'USER': 'oli98', # replace with your own username
-            'PASSWORD': 'password', # replace with your own username 
+            'PASSWORD': 'password', # replace with your own username
             'HOST': 'localhost',  # IP of the external DB server
             'PORT': '5432',
         }
