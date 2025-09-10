@@ -1,9 +1,0 @@
-Tasks:
-    calc functions:
-        ✔ RSI @done (8/29/2025, 11:46:14 AM)
-        ☐ market sentiment
-    periodic update:
-        ☐ mechanism to update the database at a regular interval (1 hour)
-    database:
-        ☐ gain benchmark
-        ☐ cluster by pair_id and measure performance

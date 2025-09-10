@@ -1,6 +1,7 @@
 from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.request import Request
 from time import time
 from math import ceil
 import inspect
@@ -151,6 +152,8 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         return Response({"data": analyses},
                                     status=api_status)
 
+    # TODO gain benchmark
+    # TODO cluster database by pair_id
     @action(detail=False, methods=['get'], url_path='pair_data')
     def pair_data(self, request):
         # check if crypto/fiat pair exists
@@ -229,11 +232,33 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         return Response({"data": prices_ma},
                                     status=api_status)
 
+    # TODO calculate market sentiment
     @action(detail=False, methods=['get'], url_path='market_sentiment')
-    def calc_Market_Sentiment(self, request):
+    def calc_Market_Sentiment(self, request: Request):
         api_status=status.HTTP_200_OK
+        # check if crypto/fiat pair exists
+        crypto_pair = str(request.query_params.get('pair'))
+        to_ts = request.query_params.get('to_ts')
+        search_string = request.query_params.get('search_string')
+
+        sentiment_data_set = self.coin_desk_api.get_sentiment(search_string=search_string)
+        # extract sentiment scores
+        sentiment_data_set_len = len(sentiment_data_set)
+        sentiment_total = 0
+        for sentiment_data in sentiment_data_set:
+            current_sentiment = sentiment_data['SENTIMENT']
+            if current_sentiment == "POSITIVE":
+                sentiment_total += 1
+            elif current_sentiment == "NEUTRAL":
+                sentiment_total += 0
+            elif current_sentiment == "NEGATIVE":
+                sentiment_total -= 1
+        
+        sentiment_score = sentiment_total/sentiment_data_set_len
+        
+        
         # Custom logic here
-        return Response({"data": "market sentiment test"},
+        return Response({"data": {"sentiment_score": sentiment_score}},
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='rsi')
@@ -272,7 +297,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         rsi_period = int(request.query_params.get('period', 14))  # default to 14 if not provided
         # If period is in days and data is hourly, multiply by 24
         rsi_period_points = rsi_period * 24  # 14 days * 24 hours = 336 points
-        rsi_values = calculate_rsi(prices_df, period=rsi_period_points)
+        rsi_values = calculate_rsi(prices_df)
 
         return Response({"data": rsi_values},
                                     status=api_status)

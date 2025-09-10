@@ -98,18 +98,31 @@ def get_rsi(pair: str, interval: str, from_ts: int, to_ts: int):
     headers = {"Accept": "application/json"}
     # Perform GET request
     response = requests.get(url, params=params, headers=headers)
-
+    
     # Check status and display result
+
     if response.status_code == 200:
         data = response.json()
-        print("RSI Data:")
-        import matplotlib.pyplot as plt
+        print(data)
+    else:
+        print(f"Error {response.status_code}: {response.text}")
 
-        rsi_values = [data_p['rsi'] for data_p in data['data']]
-        timestamps = [data_p['timestamp'] for data_p in data['data']]
-
-        plt.plot(timestamps, rsi_values, linewidth=2)
-        plt.savefig('test')
+def get_market_sentiment(pair: str, to_ts: int, search_string: str):
+    url = BASE_URL + "market_sentiment/"
+    params = {
+        "pair": pair,
+        "to_ts": to_ts,
+        "search_string": search_string
+    }
+    headers = {"Accept": "application/json"}
+    # Perform GET request
+    response = requests.get(url, params=params, headers=headers)
+    
+    # Check status and display result
+    
+    if response.status_code == 200:
+        data = response.json()
+        print(data)
     else:
         print(f"Error {response.status_code}: {response.text}")
 
@@ -121,9 +134,13 @@ if __name__ == "__main__":
     parser.add_argument('--pair-data', nargs=3, metavar=('PAIR', 'FROM_TS', 'TO_TS'), help='Test pair data endpoint')
     parser.add_argument('--update-pair', metavar='PAIR', help='Test update database for a specific pair')
     parser.add_argument('--update-all', action='store_true', help='Test update database for all pairs')
+    parser.add_argument('--market-sentiment', nargs=3, metavar=('PAIR', 'TO_TS', 'SEARCH_STRING'), help='Get market sentiment')
 
     args = parser.parse_args()
 
+    if args.market_sentiment:
+        pair, to_ts, search_string = args.market_sentiment
+        get_market_sentiment(pair=pair, to_ts=to_ts, search_string=search_string)
     if args.ma:
         get_ma(args.ma)
     if args.rsi:
