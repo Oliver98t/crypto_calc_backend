@@ -119,7 +119,6 @@ def get_market_sentiment(pair: str, to_ts: int, search_string: str):
     response = requests.get(url, params=params, headers=headers)
     
     # Check status and display result
-    
     if response.status_code == 200:
         data = response.json()
         print(data)

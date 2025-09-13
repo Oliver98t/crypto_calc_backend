@@ -51,36 +51,29 @@ def calculate_rsi(prices_df: pd.DataFrame, period: int = 14) -> list:
 
     return rsi_df.to_dict(orient='records')
 
-class CurrencyPairViewSet(viewsets.ModelViewSet):
-    queryset = CurrencyPair.objects.all()
-    serializer_class = CurrencyPairSerializer
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-class OHLCVViewSet(viewsets.ModelViewSet):
-    queryset = OHLCV.objects.all().order_by('-timestamp')
-    serializer_class = OHLCVSerializer
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.model = OHLCV
-        self.OHLCV_hourly_queryset = OHLCV.objects.all().order_by('-timestamp')
-        self.currency_pair_queryset = CurrencyPair.objects.all()
-        self.serializer_class = OHLCVSerializer
-        self.coin_desk_api = CoinDeskAPI()
-
-    @action(detail=False, methods=['put'], url_path='update_database')
-    def update_database(self, request):
-        # check if crypto/fiat pair exists
-        api_status = status.HTTP_200_OK
-        crypto_pair = str(request.query_params.get('pair'))
-        api_status_message = f"{crypto_pair} pairs updated"
+# TODO populate all DB actions
+class DatabaseActions():
+    def __init__(   self,
+                    model,
+                    OHLCV_hourly_queryset,
+                    currency_pair_queryset,
+                    serializer_class,
+                    coin_desk_api):
+        
+        self.model = model
+        self.OHLCV_hourly_queryset = OHLCV_hourly_queryset
+        self.currency_pair_queryset = currency_pair_queryset
+        self.serializer_class = serializer_class
+        self.coin_desk_api = coin_desk_api
+    
+    def update_database(self, crypto_pair):
+        update_database_status = True
         pair_split = crypto_pair.split('/')
         base = pair_split[0]
         quote = pair_split[1]
 
         try:
             currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
-
         except CurrencyPair.DoesNotExist:
             api_status = status.HTTP_400_BAD_REQUEST
         print(f"{base} {quote}")
@@ -122,9 +115,46 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                 self.model.objects.bulk_create(new_records, ignore_conflicts=True)
 
         else:
-            api_status_message = f"{crypto_pair} pairs not updated"
+            update_database_status = False
+        
+        return update_database_status
+        
 
-        return Response( {"message": api_status_message},
+
+class CurrencyPairViewSet(viewsets.ModelViewSet):
+    queryset = CurrencyPair.objects.all()
+    serializer_class = CurrencyPairSerializer
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+class OHLCVViewSet(viewsets.ModelViewSet):
+    queryset = OHLCV.objects.all().order_by('-timestamp')
+    serializer_class = OHLCVSerializer
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.model = OHLCV
+        self.OHLCV_hourly_queryset = OHLCV.objects.all().order_by('-timestamp')
+        self.currency_pair_queryset = CurrencyPair.objects.all()
+        self.serializer_class = OHLCVSerializer
+        self.coin_desk_api = CoinDeskAPI()
+        self.database_actions = DatabaseActions(model=self.model,
+                                                OHLCV_hourly_queryset=self.OHLCV_hourly_queryset,
+                                                currency_pair_queryset=self.currency_pair_queryset,
+                                                serializer_class=self.serializer_class,
+                                                coin_desk_api=self.coin_desk_api)
+
+    @action(detail=False, methods=['put'], url_path='update_database')
+    def update_database_url(self, request):
+        # check if crypto/fiat pair exists
+        api_status = status.HTTP_200_OK
+        crypto_pair = str(request.query_params.get('pair'))
+        api_status_message = f"{crypto_pair} pairs updated"
+        
+        database_update_status = self.database_actions.update_database(crypto_pair=crypto_pair)
+        if database_update_status == False:
+            api_status = status.HTTP_400_BAD_REQUEST
+
+        return Response( {"message": f"DB updated: {database_update_status}"},
                             status=api_status)
 
     @action(detail=False, methods=['get'], url_path='available_currencies')
@@ -232,7 +262,6 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         return Response({"data": prices_ma},
                                     status=api_status)
 
-    # TODO calculate market sentiment
     @action(detail=False, methods=['get'], url_path='market_sentiment')
     def calc_Market_Sentiment(self, request: Request):
         api_status=status.HTTP_200_OK
@@ -247,6 +276,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         sentiment_total = 0
         for sentiment_data in sentiment_data_set:
             current_sentiment = sentiment_data['SENTIMENT']
+            print(current_sentiment)
             if current_sentiment == "POSITIVE":
                 sentiment_total += 1
             elif current_sentiment == "NEUTRAL":
@@ -258,7 +288,9 @@ class OHLCVViewSet(viewsets.ModelViewSet):
         
         
         # Custom logic here
-        return Response({"data": {"sentiment_score": sentiment_score}},
+        return Response({"data": {"sentiment_score": sentiment_score,
+                                  "from_ts" : sentiment_data_set[-1]['PUBLISHED_ON'],
+                                  "to_ts" : sentiment_data_set[0]['PUBLISHED_ON']}},
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='rsi')

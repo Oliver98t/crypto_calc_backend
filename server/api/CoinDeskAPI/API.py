@@ -29,7 +29,7 @@ class CoinDeskAPI():
                       search_string: str, 
                       lang="EN", 
                       source_key="coindesk", 
-                      limit=10, 
+                      limit=100, 
                       to_ts=int(time())):
         response = requests.get('https://data-api.coindesk.com/news/v1/search',
             params={"search_string": search_string, "lang": lang, "source_key": source_key, "limit": limit, "to_ts":to_ts},
