@@ -26,7 +26,7 @@ DEBUG = True
 
 LOCAL_DB = False
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '192.168.1.73']
 
 # NOTE - DO NOT USE IN PRODUCTION
 CORS_ALLOW_ALL_ORIGINS = True

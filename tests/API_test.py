@@ -2,7 +2,7 @@ import requests
 import argparse
 
 # Endpoint and parameters
-BASE_URL = "http://localhost:8000/ohlcv/"
+BASE_URL = "http://192.168.1.73:8000/ohlcv/"
 def get_ma(pair: str):
     url = BASE_URL + "moving_average/"
     params = {
