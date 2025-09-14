@@ -1,5 +1,12 @@
 pipeline {
-  agent { label 'Agent1' }
+  agent {
+    docker {
+      label 'Agent1'
+      image 'python:3.11'
+      args '-u root'
+    }
+  }
+
 
   stages {
 
