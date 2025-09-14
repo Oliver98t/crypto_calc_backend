@@ -2,11 +2,6 @@ pipeline {
   agent { label 'Agent1' }
 
   stages {
-    stage('Checkout') {
-      steps {
-        git url: 'https://github.com/yourusername/yourrepo.git'
-      }
-    }
 
     stage('Install Dependencies') {
       steps {
