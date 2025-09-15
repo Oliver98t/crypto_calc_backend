@@ -17,11 +17,5 @@ pipeline {
                 sh 'pytest'
             }
         }
-
-        stage('Archive Results') {
-            steps {
-                junit 'results.xml'
-            }
-        }
     }
 }
