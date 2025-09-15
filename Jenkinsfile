@@ -1,24 +1,27 @@
 pipeline {
-  agent { label 'Agent1' }
-
-  stages {
-
-    stage('Install Dependencies') {
-      steps {
-        sh 'pip install -r requirements.txt'
-      }
+    agent { label 'Agent1' }
+    
+    environment {
+        PATH = "$HOME/.local/bin:$PATH"
     }
 
-    stage('Run Unit Tests') {
-      steps {
-        sh 'pytest'
-      }
-    }
+    stages {
+        stage('Install Dependencies') {
+            steps {
+                sh 'pip install -r requirements.txt'
+            }
+        }
 
-    stage('Archive Results') {
-      steps {
-        junit 'results.xml'
-      }
+        stage('Run Unit Tests') {
+            steps {
+                sh 'pytest'
+            }
+        }
+
+        stage('Archive Results') {
+            steps {
+                junit 'results.xml'
+            }
+        }
     }
-  }
 }
