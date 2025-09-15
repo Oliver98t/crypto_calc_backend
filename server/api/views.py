@@ -51,7 +51,6 @@ def calculate_rsi(prices_df: pd.DataFrame, period: int = 14) -> list:
 
     return rsi_df.to_dict(orient='records')
 
-# TODO populate all DB actions
 class DatabaseActions():
     def __init__(   self,
                     model,
@@ -118,8 +117,98 @@ class DatabaseActions():
             update_database_status = False
         
         return update_database_status
-        
+    
+    def pair_data(self, crypto_pair, to_timestamp, from_timestamp):
+        pair_split = crypto_pair.split('/')
+        base = pair_split[0]
+        quote = pair_split[1]
 
+        try:
+            currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
+        except CurrencyPair.DoesNotExist:
+            api_status = status.HTTP_400_BAD_REQUEST
+
+        # get query set from timestamp range
+        if to_timestamp and from_timestamp:
+            currency_pair_queryset = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
+            timestamp_range_queryset = currency_pair_queryset.filter(timestamp__range=(from_timestamp, to_timestamp))
+            timestamp_range_queryset = timestamp_range_queryset.order_by('timestamp')
+
+        prices = [{"timestamp": price.timestamp, "price" : price.open} for price in timestamp_range_queryset]
+
+        return prices
+
+    def moving_average(self, crypto_pair, to_timestamp, from_timestamp, hour_ma, day_ma):
+        pair_split = crypto_pair.split('/')
+        base = pair_split[0]
+        quote = pair_split[1]
+
+        try:
+            currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
+        except CurrencyPair.DoesNotExist:
+            prices_ma = None
+
+        # get query set from timestamp range
+        if to_timestamp and from_timestamp and ( day_ma or hour_ma ):
+            currency_pair_queryset = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
+            timestamp_range_queryset = currency_pair_queryset.filter(timestamp__range=(from_timestamp, to_timestamp))
+
+        # extract open price data
+        prices = [{"timestamp": price.timestamp, "price" : price.open} for price in timestamp_range_queryset]
+        prices_df = pd.DataFrame(prices)
+
+        if day_ma:
+            day_ma = int(day_ma)
+            prices_ma = calculate_ma(df=prices_df,window_size=day_ma*24)
+
+        elif hour_ma:
+            hour_ma = int(hour_ma)
+            prices_ma = calculate_ma(df=prices_df,window_size=hour_ma)
+        
+        return prices_ma
+
+    def market_sentiment(self, search_string):
+        sentiment_data_set = self.coin_desk_api.get_sentiment(search_string=search_string)
+        # extract sentiment scores
+        sentiment_data_set_len = len(sentiment_data_set)
+        sentiment_total = 0
+        for sentiment_data in sentiment_data_set:
+            current_sentiment = sentiment_data['SENTIMENT']
+            print(current_sentiment)
+            if current_sentiment == "POSITIVE":
+                sentiment_total += 1
+            elif current_sentiment == "NEUTRAL":
+                sentiment_total += 0
+            elif current_sentiment == "NEGATIVE":
+                sentiment_total -= 1
+        
+        sentiment_score = sentiment_total/sentiment_data_set_len
+        return sentiment_score
+
+    def rsi(self, crypto_pair, to_timestamp, from_timestamp, rsi_period=14):
+        pair_split = crypto_pair.split('/')
+        base = pair_split[0]
+        quote = pair_split[1]
+
+        try:
+            currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
+        except CurrencyPair.DoesNotExist:
+            return None
+
+        # get query set from timestamp range
+        if to_timestamp and from_timestamp:
+            currency_pair_queryset = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
+            timestamp_range_queryset = currency_pair_queryset.filter(timestamp__range=(from_timestamp, to_timestamp))
+            timestamp_range_queryset = timestamp_range_queryset.order_by('timestamp')
+
+
+        prices = [{"timestamp": price.timestamp, "price" : price.open} for price in timestamp_range_queryset]
+        prices_df = pd.DataFrame(prices)
+
+        # If period is in days and data is hourly, multiply by 24
+        rsi_period_points = rsi_period * 24  # 14 days * 24 hours = 336 points
+        rsi_values = calculate_rsi(prices_df)
+        return rsi_values
 
 class CurrencyPairViewSet(viewsets.ModelViewSet):
     queryset = CurrencyPair.objects.all()
@@ -162,7 +251,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                             status=api_status)
 
     @action(detail=False, methods=['get'], url_path='available_currencies')
-    def available_currencies(self, request):
+    def available_currencies_url(self, request):
         api_status=status.HTTP_200_OK
         fiat_currencies = self.currency_pair_queryset.values_list('quote_code',flat=True).distinct()
         crypto_currencies = self.currency_pair_queryset.values_list('base_code',flat=True).distinct()
@@ -176,7 +265,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='available_analyses')
-    def available_analyses(self, request):
+    def available_analyses_url(self, request):
         api_status=status.HTTP_200_OK
         function_prefix = 'calc_'
         analyses = [name.replace(function_prefix, '').replace('_', ' ')
@@ -189,151 +278,75 @@ class OHLCVViewSet(viewsets.ModelViewSet):
     # TODO gain benchmark
     # TODO cluster database by pair_id
     @action(detail=False, methods=['get'], url_path='pair_data')
-    def pair_data(self, request):
+    def pair_data_url(self, request):
         # check if crypto/fiat pair exists
         api_status = status.HTTP_200_OK
         crypto_pair = str(request.query_params.get('pair'))
-        api_status_message = f"{crypto_pair} data exists"
-        pair_split = crypto_pair.split('/')
-        base = pair_split[0]
-        quote = pair_split[1]
-
-        try:
-            currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
-        except CurrencyPair.DoesNotExist:
-            api_status = status.HTTP_400_BAD_REQUEST
-
         to_timestamp = request.query_params.get('to_ts')
         from_timestamp = request.query_params.get('from_ts')
 
-        # get query set from timestamp range
-        if to_timestamp and from_timestamp:
-            currency_pair_queryset = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
-            timestamp_range_queryset = currency_pair_queryset.filter(timestamp__range=(from_timestamp, to_timestamp))
-            timestamp_range_queryset = timestamp_range_queryset.order_by('timestamp')
-
-        prices = [{"timestamp": price.timestamp, "price" : price.open} for price in timestamp_range_queryset]
+        prices = self.database_actions.pair_data(crypto_pair=crypto_pair, 
+                                                 to_timestamp=to_timestamp, 
+                                                 from_timestamp=from_timestamp)
+        if not prices:
+            api_status = status.HTTP_400_BAD_REQUEST 
 
         return Response({"data": prices},
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='moving_average')
-    def calc_Moving_Average(self, request):
+    def calc_Moving_Average_url(self, request):
         # get parameters
         api_status=status.HTTP_200_OK
         # check if crypto/fiat pair exists
         crypto_pair = str(request.query_params.get('pair'))
-        print(crypto_pair)
-
-        pair_split = crypto_pair.split('/')
-        base = pair_split[0]
-        quote = pair_split[1]
-
-        try:
-            currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
-        except CurrencyPair.DoesNotExist:
-            api_status = status.HTTP_400_BAD_REQUEST
-
         to_timestamp = request.query_params.get('to_ts')
         from_timestamp = request.query_params.get('from_ts')
         day_ma = request.query_params.get('day_ma')
         hour_ma = request.query_params.get('hour_ma')
+        print(crypto_pair)
 
-        # get query set from timestamp range
-        if to_timestamp and from_timestamp and ( day_ma or hour_ma ):
-            currency_pair_queryset = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
-            timestamp_range_queryset = currency_pair_queryset.filter(timestamp__range=(from_timestamp, to_timestamp))
-
-
-        # extract open price data
-        prices = [{"timestamp": price.timestamp, "price" : price.open} for price in timestamp_range_queryset]
-        prices_df = pd.DataFrame(prices)
-
-        prices_ma = None
-        api_status=status.HTTP_200_OK
-        if day_ma:
-            day_ma = int(day_ma)
-            prices_ma = calculate_ma(df=prices_df,window_size=day_ma*24)
-
-        elif hour_ma:
-            hour_ma = int(hour_ma)
-            prices_ma = calculate_ma(df=prices_df,window_size=hour_ma)
-
-        else:
-            api_status = status.HTTP_400_BAD_REQUEST
+        prices_ma = self.database_actions.moving_average(   crypto_pair=crypto_pair, 
+                                                            to_timestamp=to_timestamp, 
+                                                            from_timestamp=from_timestamp, 
+                                                            day_ma=day_ma, 
+                                                            hour_ma=hour_ma)
 
         # Custom logic here
         return Response({"data": prices_ma},
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='market_sentiment')
-    def calc_Market_Sentiment(self, request: Request):
+    def calc_Market_Sentiment_url(self, request: Request):
         api_status=status.HTTP_200_OK
         # check if crypto/fiat pair exists
         crypto_pair = str(request.query_params.get('pair'))
         to_ts = request.query_params.get('to_ts')
         search_string = request.query_params.get('search_string')
 
-        sentiment_data_set = self.coin_desk_api.get_sentiment(search_string=search_string)
-        # extract sentiment scores
-        sentiment_data_set_len = len(sentiment_data_set)
-        sentiment_total = 0
-        for sentiment_data in sentiment_data_set:
-            current_sentiment = sentiment_data['SENTIMENT']
-            print(current_sentiment)
-            if current_sentiment == "POSITIVE":
-                sentiment_total += 1
-            elif current_sentiment == "NEUTRAL":
-                sentiment_total += 0
-            elif current_sentiment == "NEGATIVE":
-                sentiment_total -= 1
-        
-        sentiment_score = sentiment_total/sentiment_data_set_len
-        
-        
+        sentiment_score = self.database_actions.market_sentiment(search_string=search_string)        
         # Custom logic here
-        return Response({"data": {"sentiment_score": sentiment_score,
-                                  "from_ts" : sentiment_data_set[-1]['PUBLISHED_ON'],
-                                  "to_ts" : sentiment_data_set[0]['PUBLISHED_ON']}},
-                                    status=api_status)
+        return Response({"data": {"sentiment_score": sentiment_score}},
+                            status=api_status)
 
     @action(detail=False, methods=['get'], url_path='rsi')
-    def calc_RSI(self, request):
+    def calc_RSI_url(self, request):
         # check if crypto/fiat pair exists
         api_status = status.HTTP_200_OK
         crypto_pair = str(request.query_params.get('pair'))
-        api_status_message = f"{crypto_pair} data exists"
-        pair_split = crypto_pair.split('/')
-        base = pair_split[0]
-        quote = pair_split[1]
-
-        # get interval
-        interval = request.query_params.get('interval')
-        print(interval)
-
-        try:
-            currency_pair = self.currency_pair_queryset.get(base_code=base, quote_code=quote)
-        except CurrencyPair.DoesNotExist:
-            api_status = status.HTTP_400_BAD_REQUEST
-
         to_timestamp = request.query_params.get('to_ts')
         from_timestamp = request.query_params.get('from_ts')
-
-        # get query set from timestamp range
-        if to_timestamp and from_timestamp:
-            currency_pair_queryset = self.OHLCV_hourly_queryset.filter(pair_id=currency_pair)
-            timestamp_range_queryset = currency_pair_queryset.filter(timestamp__range=(from_timestamp, to_timestamp))
-            timestamp_range_queryset = timestamp_range_queryset.order_by('timestamp')
-
-
-        prices = [{"timestamp": price.timestamp, "price" : price.open} for price in timestamp_range_queryset]
-        prices_df = pd.DataFrame(prices)
-
-        # Calculate RSI values
+        interval = request.query_params.get('interval')
         rsi_period = int(request.query_params.get('period', 14))  # default to 14 if not provided
-        # If period is in days and data is hourly, multiply by 24
-        rsi_period_points = rsi_period * 24  # 14 days * 24 hours = 336 points
-        rsi_values = calculate_rsi(prices_df)
+        print(interval)
+
+        rsi_values = self.database_actions.rsi( crypto_pair=crypto_pair, 
+                                                to_timestamp=to_timestamp, 
+                                                from_timestamp=from_timestamp, 
+                                                rsi_period=rsi_period)
+        
+        if rsi_values is None:
+            api_status = status.HTTP_400_BAD_REQUEST
 
         return Response({"data": rsi_values},
                                     status=api_status)
