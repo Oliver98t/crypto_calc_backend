@@ -3,6 +3,21 @@ import argparse
 
 # Endpoint and parameters
 BASE_URL = "http://192.168.1.73:8000/ohlcv/"
+
+def get_system_status():
+    url = BASE_URL + "get_system_status/"
+    
+    headers = {"Accept": "application/json"}
+    # Perform GET request
+    response = requests.get(url, headers=headers)
+
+    # Check status and display result
+    if response.status_code == 200:
+        data = response.json()
+        print(f"system status {data}")
+    else:
+        print(f"Error {response.status_code}: {response.text}")
+
 def get_ma(pair: str):
     url = BASE_URL + "moving_average/"
     params = {
@@ -130,6 +145,7 @@ if __name__ == "__main__":
     parser.add_argument('--ma', metavar='PAIR', help='Test moving average for given pair (e.g. BTC/GBP)')
     parser.add_argument('--rsi', nargs=4, metavar=('PAIR', 'INTERVAL', 'FROM_TS', 'TO_TS'), help='Test pair data endpoint')
     parser.add_argument('--currencies', action='store_true', help='Test available currencies endpoint')
+    parser.add_argument('--status', action='store_true', help='Test check if system is alive')
     parser.add_argument('--pair-data', nargs=3, metavar=('PAIR', 'FROM_TS', 'TO_TS'), help='Test pair data endpoint')
     parser.add_argument('--update-pair', metavar='PAIR', help='Test update database for a specific pair')
     parser.add_argument('--update-all', action='store_true', help='Test update database for all pairs')
@@ -137,6 +153,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if args.status:
+        get_system_status()
     if args.market_sentiment:
         pair, to_ts, search_string = args.market_sentiment
         get_market_sentiment(pair=pair, to_ts=to_ts, search_string=search_string)

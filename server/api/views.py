@@ -142,6 +142,10 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                                                 currency_pair_queryset=self.currency_pair_queryset,
                                                 serializer_class=self.serializer_class,
                                                 coin_desk_api=self.coin_desk_api)
+    
+    @action(detail=False, methods=['get'], url_path='get_system_status')
+    def get_system_status_url(self, request):
+        return Response( {'status': True}, status=status.HTTP_200_OK )
 
     @action(detail=False, methods=['put'], url_path='update_database')
     def update_database_url(self, request):
