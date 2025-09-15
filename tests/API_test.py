@@ -3,13 +3,14 @@ import argparse
 
 # Endpoint and parameters
 BASE_URL = "http://192.168.1.73:8000/ohlcv/"
+TIMEOUT_S=5
 
 def get_system_status():
     url = BASE_URL + "get_system_status/"
     
     headers = {"Accept": "application/json"}
     # Perform GET request
-    response = requests.get(url, headers=headers)
+    response = requests.get(url, headers=headers, timeout=TIMEOUT_S)
 
     # Check status and display result
     if response.status_code == 200:

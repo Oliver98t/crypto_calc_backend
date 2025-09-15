@@ -12,6 +12,12 @@ pipeline {
             }
         }
 
+        stage('Check system status') {
+            steps {
+                sh 'python3 tests/API_test.py --status'
+            }
+        }
+        
         stage('Run Unit Tests') {
             steps {
                 sh 'pytest'
