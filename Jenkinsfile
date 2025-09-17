@@ -14,7 +14,7 @@ pipeline {
 
         stage('Check system status') {
             steps {
-                sh 'python3 tests/API_test.py --status'
+                sh 'python3 server/tests/API_test.py --status'
             }
         }
         
