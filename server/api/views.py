@@ -11,46 +11,8 @@ from .models import OHLCV, CurrencyPair
 from .serializers import CurrencyPairSerializer, OHLCVSerializer
 from .CoinDeskAPI.API import CoinDeskAPI, COINDESK_API_HOURLY_LIMIT
 
-# moving average functions
+# database actions
 #-------------------------------------------------------------------------
-def calculate_ma(df: pd.DataFrame, window_size: int) -> dict:
-    # calculate ma column for pandas df
-    df.sort_values('timestamp', inplace=True)
-    df['price'] = df['price'].rolling(window=window_size).mean().round(2)
-    # convert to dict
-    # Filter out rows where price is NaN
-    filtered_df = df[['timestamp', 'price']].dropna()
-
-    # Convert to list of dictionaries
-    result = filtered_df.to_dict(orient='records')
-
-    return result
-#-------------------------------------------------------------------------
-def calculate_rsi(prices_df: pd.DataFrame, period: int = 14) -> list:
-    """
-    Calculate RSI for a DataFrame with 'price' and 'timestamp' columns.
-    Returns a list of dicts: [{'timestamp': ..., 'rsi': ...}, ...]
-    """
-    if prices_df.empty or len(prices_df) < period:
-        return []
-
-    delta = prices_df['price'].diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-
-    avg_gain = gain.rolling(window=period, min_periods=period).mean()
-    avg_loss = loss.rolling(window=period, min_periods=period).mean()
-
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
-
-    rsi_df = pd.DataFrame({
-        'timestamp': prices_df['timestamp'],
-        'rsi': rsi
-    }).dropna()
-
-    return rsi_df.to_dict(orient='records')
-
 class DatabaseActions():
     def __init__(   self,
                     model,
@@ -65,6 +27,44 @@ class DatabaseActions():
         self.serializer_class = serializer_class
         self.coin_desk_api = coin_desk_api
     
+    def calculate_ma(self, df: pd.DataFrame, window_size: int) -> dict:
+        # calculate ma column for pandas df
+        df.sort_values('timestamp', inplace=True)
+        df['price'] = df['price'].rolling(window=window_size).mean().round(2)
+        # convert to dict
+        # Filter out rows where price is NaN
+        filtered_df = df[['timestamp', 'price']].dropna()
+
+        # Convert to list of dictionaries
+        result = filtered_df.to_dict(orient='records')
+
+        return result
+
+    def calculate_rsi(self, prices_df: pd.DataFrame, period: int = 14) -> list:
+        """
+        Calculate RSI for a DataFrame with 'price' and 'timestamp' columns.
+        Returns a list of dicts: [{'timestamp': ..., 'rsi': ...}, ...]
+        """
+        if prices_df.empty or len(prices_df) < period:
+            return []
+
+        delta = prices_df['price'].diff()
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+
+        avg_gain = gain.rolling(window=period, min_periods=period).mean()
+        avg_loss = loss.rolling(window=period, min_periods=period).mean()
+
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+
+        rsi_df = pd.DataFrame({
+            'timestamp': prices_df['timestamp'],
+            'rsi': rsi
+        }).dropna()
+
+        return rsi_df.to_dict(orient='records')
+
     def update_database(self, crypto_pair):
         update_database_status = True
         pair_split = crypto_pair.split('/')
@@ -159,11 +159,11 @@ class DatabaseActions():
 
         if day_ma:
             day_ma = int(day_ma)
-            prices_ma = calculate_ma(df=prices_df,window_size=day_ma*24)
+            prices_ma = self.calculate_ma(df=prices_df,window_size=day_ma*24)
 
         elif hour_ma:
             hour_ma = int(hour_ma)
-            prices_ma = calculate_ma(df=prices_df,window_size=hour_ma)
+            prices_ma = self.calculate_ma(df=prices_df,window_size=hour_ma)
         
         return prices_ma
 
@@ -207,8 +207,9 @@ class DatabaseActions():
 
         # If period is in days and data is hourly, multiply by 24
         rsi_period_points = rsi_period * 24  # 14 days * 24 hours = 336 points
-        rsi_values = calculate_rsi(prices_df)
+        rsi_values = self.calculate_rsi(prices_df)
         return rsi_values
+#-------------------------------------------------------------------------
 
 class CurrencyPairViewSet(viewsets.ModelViewSet):
     queryset = CurrencyPair.objects.all()
