@@ -234,11 +234,11 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                                                 coin_desk_api=self.coin_desk_api)
     
     @action(detail=False, methods=['get'], url_path='get_system_status')
-    def get_system_status_url(self, request):
+    def get_system_status(self, request):
         return Response( {'status': True}, status=status.HTTP_200_OK )
 
     @action(detail=False, methods=['put'], url_path='update_database')
-    def update_database_url(self, request):
+    def update_database(self, request):
         # check if crypto/fiat pair exists
         api_status = status.HTTP_200_OK
         crypto_pair = str(request.query_params.get('pair'))
@@ -252,7 +252,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                             status=api_status)
 
     @action(detail=False, methods=['get'], url_path='available_currencies')
-    def available_currencies_url(self, request):
+    def available_currencies(self, request):
         api_status=status.HTTP_200_OK
         fiat_currencies = self.currency_pair_queryset.values_list('quote_code',flat=True).distinct()
         crypto_currencies = self.currency_pair_queryset.values_list('base_code',flat=True).distinct()
@@ -266,7 +266,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='available_analyses')
-    def available_analyses_url(self, request):
+    def available_analyses(self, request):
         api_status=status.HTTP_200_OK
         function_prefix = 'calc_'
         analyses = [name.replace(function_prefix, '').replace('_', ' ')
@@ -279,7 +279,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
     # TODO gain benchmark
     # TODO cluster database by pair_id
     @action(detail=False, methods=['get'], url_path='pair_data')
-    def pair_data_url(self, request):
+    def pair_data(self, request):
         # check if crypto/fiat pair exists
         api_status = status.HTTP_200_OK
         crypto_pair = str(request.query_params.get('pair'))
@@ -296,7 +296,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='moving_average')
-    def calc_Moving_Average_url(self, request):
+    def calc_Moving_Average(self, request):
         # get parameters
         api_status=status.HTTP_200_OK
         # check if crypto/fiat pair exists
@@ -318,7 +318,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                                     status=api_status)
 
     @action(detail=False, methods=['get'], url_path='market_sentiment')
-    def calc_Market_Sentiment_url(self, request: Request):
+    def calc_Market_Sentiment(self, request: Request):
         api_status=status.HTTP_200_OK
         # check if crypto/fiat pair exists
         crypto_pair = str(request.query_params.get('pair'))
@@ -331,20 +331,16 @@ class OHLCVViewSet(viewsets.ModelViewSet):
                             status=api_status)
 
     @action(detail=False, methods=['get'], url_path='rsi')
-    def calc_RSI_url(self, request):
+    def calc_RSI(self, request):
         # check if crypto/fiat pair exists
         api_status = status.HTTP_200_OK
         crypto_pair = str(request.query_params.get('pair'))
         to_timestamp = request.query_params.get('to_ts')
         from_timestamp = request.query_params.get('from_ts')
-        interval = request.query_params.get('interval')
-        rsi_period = int(request.query_params.get('period', 14))  # default to 14 if not provided
-        print(interval)
 
         rsi_values = self.database_actions.rsi( crypto_pair=crypto_pair, 
                                                 to_timestamp=to_timestamp, 
-                                                from_timestamp=from_timestamp, 
-                                                rsi_period=rsi_period)
+                                                from_timestamp=from_timestamp)
         
         if rsi_values is None:
             api_status = status.HTTP_400_BAD_REQUEST
