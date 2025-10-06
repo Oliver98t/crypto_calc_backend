@@ -104,8 +104,8 @@ else:
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': 'postgres',
             'USER': 'oli98', # replace with your own username
-            'PASSWORD': 'password', # replace with your own username
-            'HOST': 'localhost',  # IP of the external DB server
+            'PASSWORD': 'password', # replace with your own password
+            'HOST': 'crypto_calc_db',  # Container name for the PostgreSQL database
             'PORT': '5432',
         }
     }
@@ -152,8 +152,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-# ...existing code...
 
 import logging.config
 

@@ -268,6 +268,7 @@ class OHLCVViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='available_analyses')
     def available_analyses(self, request):
         api_status=status.HTTP_200_OK
+        
         function_prefix = 'calc_'
         analyses = [name.replace(function_prefix, '').replace('_', ' ')
                     for name, obj in inspect.getmembers(OHLCVViewSet, predicate=inspect.isfunction)
