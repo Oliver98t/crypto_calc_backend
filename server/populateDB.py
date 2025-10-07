@@ -60,5 +60,5 @@ def insert_ohlcv_data():
             insert_ohlcv_data_pair(base=crypto, quote=fiat, coin_desk_api=coin_desk_api)
 
 if __name__ == "__main__":
-    insert_currency_pairs()
-    #insert_ohlcv_data()
+    #insert_currency_pairs()
+    insert_ohlcv_data()

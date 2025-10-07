@@ -35,5 +35,5 @@ class ApiConfig(AppConfig):
         # start thread that periodcially updates DB
         # DONT FORGET "python manage.py runserver --noreload"
         print("<------------------------------Crypto Calc Backend Boot--------------------------->")
-        #start_periodic_DB_update()
+        start_periodic_DB_update()
         return

@@ -3,7 +3,7 @@ import argparse
 from time import time
 
 # Endpoint and parameters
-BASE_URL = "http://192.168.1.73:8000/ohlcv/"
+BASE_URL = "http://192.168.1.73/api/ohlcv/"
 TIMEOUT_S=5
 
 def get_system_status():
